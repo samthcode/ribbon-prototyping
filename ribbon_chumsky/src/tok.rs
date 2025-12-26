@@ -1,0 +1,165 @@
+use logos::Logos;
+
+#[derive(Logos, Debug, PartialEq)]
+#[logos(skip r"[ \t\r\n\f]+")]
+pub enum Token<'src> {
+    // Keywords
+    #[token("const")]
+    KwConst,
+    #[token("struct")]
+    KwStruct,
+    #[token("trait")]
+    KwTrait,
+    #[token("enum")]
+    KwEnum,
+    #[token("return")]
+    KwReturn,
+    #[token("use")]
+    KwUse,
+    #[token("for")]
+    KwFor,
+    #[token("while")]
+    KwWhile,
+
+    // Literals
+    #[regex(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?", |lex| lex.slice())]
+    LitNumber(&'src str),
+    #[regex(r#""([^"\\\x00-\x1F]|\\(['"\\bnfrt/]|u[a-fA-F0-9]{4}))*""#, |lex| lex.slice())]
+    LitString(&'src str),
+    #[regex(r#""([^"\\\x00-\x1F]|\\(['"\\bnfrt/]|u[a-fA-F0-9]{4}))*$"#, |lex| lex.slice())]
+    LitUnterminatedString(&'src str),
+    #[regex(r#"'([^"\\\x00-\x1F]|\\(['"\\bnfrt/]|u[a-fA-F0-9]{4}))'"#, |lex| lex.slice())]
+    LitChar(&'src str),
+    #[token("true", |_| true)]
+    #[token("false", |_| false)]
+    LitBool,
+
+    // Identifier
+    #[regex(r"[\p{L}\p{M}][\p{L}\p{M}\p{Nd}]*", |lex| lex.slice())]
+    Ident(&'src str),
+
+    // Operators
+    #[token("+")]
+    Plus,
+    #[token("-")]
+    Minus,
+    #[token("*")]
+    Mul,
+    #[token("/")]
+    Div,
+    #[token("%")]
+    Mod,
+
+    #[token("(")]
+    LParen,
+    #[token(")")]
+    RParen,
+    #[token("[")]
+    LSquare,
+    #[token("]")]
+    RSquare,
+    #[token("{")]
+    LCurly,
+    #[token("}")]
+    RCurly,
+
+    #[token(",")]
+    Comma,
+    #[token(".")]
+    Dot,
+    #[token(":")]
+    Colon,
+    #[token(";")]
+    Semi,
+    #[token("@")]
+    At,
+    #[token("#")]
+    Hash,
+    #[token("~")]
+    Tilde,
+
+    #[token("&")]
+    Amp,
+    #[token("^")]
+    Caret,
+    #[token("|")]
+    Pipe,
+    #[token("<<")]
+    ShiftL,
+    #[token(">>")]
+    ShiftR,
+
+    #[token("!")]
+    Bang,
+
+    #[token("$")]
+    Dollar,
+
+    #[token("<")]
+    Lt,
+    #[token(">")]
+    Gt,
+
+    #[token("==")]
+    EqEq,
+    #[token("!=")]
+    BangEq,
+    #[token("<=")]
+    LtEq,
+    #[token(">=")]
+    GtEq,
+
+    #[token("=")]
+    Eq,
+    #[token("&=")]
+    AmpEq,
+    #[token("^=")]
+    CaretEq,
+    #[token("|=")]
+    PipeEq,
+    #[token("+=")]
+    PlusEq,
+    #[token("-=")]
+    MinusEq,
+    #[token("*=")]
+    MulEq,
+    #[token("/=")]
+    DivEq,
+    #[token("%=")]
+    ModEq,
+    #[token(".=")]
+    DotEq,
+    #[token("&&=")]
+    AndEq,
+    #[token("||=")]
+    OrEq,
+    #[token("<<=")]
+    ShiftLEq,
+    #[token(">>=")]
+    ShiftREq,
+
+    #[token("&&")]
+    And,
+    #[token("||")]
+    Or,
+
+    #[token("::")]
+    Path,
+
+    #[token("..")]
+    DotDot,
+    #[token("..=")]
+    DotDotEq,
+
+    #[token(":>")]
+    ColonGt,
+    #[token("~>")]
+    TildeGt,
+    #[token("->")]
+    MinusGt,
+    #[token("=>")]
+    EqGt,
+
+    #[token("~?")]
+    TildeQuestion,
+}

@@ -1,8 +1,12 @@
+use std::fmt::Display;
+
 use logos::Logos;
 
-#[derive(Logos, Debug, PartialEq)]
+#[derive(Logos, Debug, PartialEq, Clone, Copy)]
 #[logos(skip r"[ \t\r\n\f]+")]
 pub enum Token<'src> {
+    Error,
+
     // Keywords
     #[token("const")]
     KwConst,
@@ -32,7 +36,7 @@ pub enum Token<'src> {
     LitChar(&'src str),
     #[token("true", |_| true)]
     #[token("false", |_| false)]
-    LitBool,
+    LitBool(bool),
 
     // Identifier
     #[regex(r"[\p{L}\p{M}][\p{L}\p{M}\p{Nd}]*", |lex| lex.slice())]
@@ -162,4 +166,10 @@ pub enum Token<'src> {
 
     #[token("~?")]
     TildeQuestion,
+}
+
+impl Display for Token<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
 }

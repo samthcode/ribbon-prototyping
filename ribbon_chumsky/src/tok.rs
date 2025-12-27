@@ -26,7 +26,7 @@ pub enum Token<'src> {
     KwWhile,
 
     // Literals
-    #[regex(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?", |lex| lex.slice())]
+    #[regex(r"(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?", |lex| lex.slice())]
     LitNumber(&'src str),
     #[regex(r#""([^"\\\x00-\x1F]|\\(['"\\bnfrt/]|u[a-fA-F0-9]{4}))*""#, |lex| lex.slice())]
     LitString(&'src str),

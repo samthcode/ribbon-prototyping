@@ -1,4 +1,5 @@
 use chumsky::input::{Stream, ValueInput};
+use chumsky::pratt::*;
 use chumsky::prelude::*;
 use logos::Logos;
 
@@ -61,34 +62,33 @@ where
         }
         .spanned();
         let list = expr
+            .clone()
             .separated_by(just(Token::Comma))
             .allow_trailing()
             .collect::<Vec<_>>()
             .map(Expr::List)
             .delimited_by(just(Token::LSquare), just(Token::RSquare))
             .spanned();
-        let atom = terminal.or(list);
-        let mul = choice((
-            atom.clone()
-                .then(select! {
-                    Token::Mul => BinOp::Mul,
-                    Token::Div => BinOp::Div
-                })
-                .then(atom.clone())
-                .map(|((lhs, op), rhs)| Expr::Bin(Box::new(lhs), op, Box::new(rhs)))
-                .spanned(),
-            atom.clone(),
+        let paren_expr = expr.delimited_by(just(Token::LParen), just(Token::RParen));
+        let atom = terminal.or(list).or(paren_expr);
+
+        let infix_op = |prec, tok, bin_op| {
+            infix(
+                prec,
+                just(tok).to(bin_op).spanned(),
+                |lhs: Spanned<Expr<'_>>, op, rhs, _| {
+                    let span = SimpleSpan::from(lhs.span.start..rhs.span.end);
+                    Expr::Bin(Box::new(lhs), op, Box::new(rhs)).with_span(span)
+                },
+            )
+        };
+        let pratt = atom.pratt((
+            infix_op(left(2), Token::Mul, BinOp::Mul),
+            infix_op(left(2), Token::Div, BinOp::Div),
+            infix_op(left(1), Token::Plus, BinOp::Add),
+            infix_op(left(1), Token::Minus, BinOp::Sub),
         ));
-        let add = mul
-            .clone()
-            .then(select! {
-                Token::Plus => BinOp::Add,
-                Token::Minus => BinOp::Sub,
-            })
-            .then(mul.clone())
-            .map(|((lhs, op), rhs)| Expr::Bin(Box::new(lhs), op, Box::new(rhs)))
-            .spanned();
-        choice((add, mul, atom))
+        pratt
     })
 }
 

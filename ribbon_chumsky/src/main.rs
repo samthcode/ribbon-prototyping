@@ -12,11 +12,7 @@ fn main() {
         .expect("expected input wrapped in `\"` to lex");
     let result = parse_from_source(&input);
     match result.into_result() {
-        Ok(ast) => {
-            for node in ast {
-                println!("{:#?}@{}", node.inner, node.span)
-            }
-        }
+        Ok(ast) => println!("{ast:#?}"),
         Err(errs) => {
             for err in errs {
                 Report::build(ReportKind::Error, ((), err.span().into_range()))

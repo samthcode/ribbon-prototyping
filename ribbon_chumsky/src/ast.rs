@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 
 use chumsky::span::Spanned;
 
@@ -20,13 +20,6 @@ pub enum Expr<'src> {
     ),
 }
 
-impl Display for Expr<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // TODO
-        write!(f, "{self:#?}")
-    }
-}
-
 #[derive(Debug, Clone)]
 pub enum BinOp {
     Add,
@@ -35,34 +28,11 @@ pub enum BinOp {
     Div,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Binding<'src> {
     pub pat: Spanned<Pat<'src>>,
     pub ty: Option<Spanned<Ty<'src>>>,
     pub val: Spanned<Expr<'src>>,
-}
-
-impl Debug for Binding<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Binding")
-            .field(
-                "pat",
-                &format_args!("{:#?}@{}", self.pat.inner, self.pat.span),
-            )
-            .field(
-                "ty",
-                &format_args!(
-                    "{}@{}",
-                    self.ty
-                        .clone()
-                        .map(|t| format!("{:#?}", t.inner))
-                        .unwrap_or("<infer>".to_string()),
-                    self.ty.clone().map(|t| t.span).unwrap_or_default()
-                ),
-            )
-            .field("val", &format_args!("{}@{}", self.val.inner, self.val.span))
-            .finish()
-    }
 }
 
 #[derive(Debug, Clone)]

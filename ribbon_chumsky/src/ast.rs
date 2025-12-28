@@ -12,16 +12,14 @@ pub enum Expr<'src> {
     Bool(bool),
 
     List(Vec<Spanned<Expr<'src>>>),
-
     Bin(
         Box<Spanned<Expr<'src>>>,
         Spanned<BinOp>,
         Box<Spanned<Expr<'src>>>,
     ),
-
     Block(Box<Block<'src>>),
-
-    Fn(Box<Fn<'src>>),
+    Fn(Box<Func<'src>>),
+    Binding(Box<Binding<'src>>)
 }
 
 #[derive(Debug, Clone)]
@@ -57,7 +55,7 @@ pub enum Ty<'src> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Fn<'src> {
+pub struct Func<'src> {
     pub params: Vec<Spanned<Param<'src>>>,
     pub ty: Option<Spanned<Ty<'src>>>,
     pub body: Spanned<Expr<'src>>,

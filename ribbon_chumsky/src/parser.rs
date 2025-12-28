@@ -3,7 +3,7 @@ use chumsky::pratt::*;
 use chumsky::prelude::*;
 use logos::Logos;
 
-use crate::ast::{BinOp, Binding, Block, Expr, Fn, Param, Pat, Ty};
+use crate::ast::{BinOp, Binding, Block, Expr, Func, Param, Pat, Ty};
 use crate::tok::Token;
 
 pub fn parse_from_source<'toks, 'src: 'toks>(
@@ -20,19 +20,28 @@ pub fn parse_from_source<'toks, 'src: 'toks>(
 }
 
 fn root_parser<'toks, 'src: 'toks, I>()
--> impl Parser<'toks, I, Vec<Spanned<Binding<'toks>>>, chumsky::extra::Err<Rich<'toks, Token<'src>>>>
+-> impl Parser<'toks, I, Vec<Spanned<Binding<'src>>>, chumsky::extra::Err<Rich<'toks, Token<'src>>>>
 where
     I: ValueInput<'toks, Token = Token<'src>, Span = SimpleSpan>,
 {
     // A module is comprised purely of bindings for functions, structs, traits, enums, constants etc.
-    binding_parser()
+    binding_parser(expr_parser())
         .separated_by(just(Token::Semi).repeated())
         .allow_trailing()
         .collect()
 }
 
-fn binding_parser<'toks, 'src: 'toks, I>()
--> impl Parser<'toks, I, Spanned<Binding<'toks>>, chumsky::extra::Err<Rich<'toks, Token<'src>>>>
+/// Parses a binding e.g. `PAT:TY?=EXPR`
+///
+/// Note that this needs to take the expression parser as an input because it will be used recursively in the `expr_parser` function
+fn binding_parser<'toks, 'src: 'toks, I>(
+    expr_parser: impl Parser<
+        'toks,
+        I,
+        Spanned<Expr<'src>>,
+        chumsky::extra::Err<Rich<'toks, Token<'src>>>,
+    >,
+) -> impl Parser<'toks, I, Spanned<Binding<'src>>, chumsky::extra::Err<Rich<'toks, Token<'src>>>>
 where
     I: ValueInput<'toks, Token = Token<'src>, Span = SimpleSpan>,
 {
@@ -40,7 +49,7 @@ where
         .then_ignore(just(Token::Colon))
         .then(ty_parser().or_not())
         .then_ignore(just(Token::Eq))
-        .then(expr_parser())
+        .then(expr_parser)
         .map(|((pat, ty), val)| Binding { pat, ty, val })
         .spanned()
 }
@@ -51,6 +60,12 @@ where
     I: ValueInput<'toks, Token = Token<'src>, Span = SimpleSpan>,
 {
     recursive(|expr| {
+        let binding = binding_parser(expr.clone())
+            .map(|b| Expr::Binding(Box::new(b.inner)))
+            .spanned();
+
+        let stmt = binding.or(expr.clone());
+
         let terminal = select! {
             Token::Ident(i) => Expr::Var(i),
             Token::LitNumber(n) => Expr::Num(n),
@@ -75,8 +90,7 @@ where
             .delimited_by(just(Token::LParen), just(Token::RParen))
             .spanned();
 
-        let block = expr
-            .clone()
+        let block = stmt
             .separated_by(just(Token::Semi).repeated())
             .collect::<Vec<_>>()
             .then(just(Token::Semi).or_not())
@@ -91,7 +105,8 @@ where
                     }))
                 }
             })
-            .spanned();
+            .spanned()
+            .boxed();
 
         let param = pat_parser()
             .then_ignore(just(Token::Colon))
@@ -113,7 +128,7 @@ where
                         .ignore_then(expr.clone())
                         .or(block.clone()),
                 )
-                .map(|((params, ty), body)| Fn {
+                .map(|((params, ty), body)| Func {
                     params,
                     ty: Some(ty),
                     body,
@@ -121,15 +136,17 @@ where
             params
                 .then_ignore(just(Token::EqGt))
                 .then(expr)
-                .map(|(params, body)| Fn {
+                .map(|(params, body)| Func {
                     params,
                     ty: None,
                     body,
                 }),
         ))
         .map(|f| Expr::Fn(Box::new(f)))
-        .spanned();
-        let atom = choice((terminal, r#fn, block, list, paren_expr)).boxed();
+        .spanned()
+        .boxed();
+
+        let atom = choice((terminal, r#fn, block, list, paren_expr));
 
         let infix_op = |prec, tok, bin_op| {
             infix(

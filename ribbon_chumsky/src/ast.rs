@@ -109,6 +109,7 @@ pub enum Pat<'src> {
 pub enum Ty<'src> {
     Concrete(&'src str),
     Generic(&'src str, Vec<Spanned<Ty<'src>>>),
+    Func(Vec<Spanned<Ty<'src>>>, Box<Spanned<Ty<'src>>>),
 }
 
 #[derive(Debug, Clone)]

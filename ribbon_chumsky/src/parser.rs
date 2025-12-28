@@ -300,11 +300,12 @@ where
     I: ValueInput<'toks, Token = Token<'src>, Span = SimpleSpan>,
 {
     recursive(|ty| {
-        select! {
+        let non_func = select! {
             Token::Ident(i) => i
         }
         .then(
-            ty.separated_by(just(Token::Comma))
+            ty.clone()
+                .separated_by(just(Token::Comma))
                 .allow_trailing()
                 .collect::<Vec<_>>()
                 .delimited_by(just(Token::LSquare), just(Token::RSquare))
@@ -313,8 +314,18 @@ where
         .map(|(name, maybe_args)| match maybe_args {
             Some(args) => Ty::Generic(name, args),
             None => Ty::Concrete(name),
-        })
-        .spanned()
+        });
+
+        let func = ty
+            .clone()
+            .separated_by(just(Token::Comma))
+            .collect::<Vec<_>>()
+            .delimited_by(just(Token::LParen), just(Token::RParen))
+            .then_ignore(just(Token::MinusGt))
+            .then(ty)
+            .map(|(args, ret)| Ty::Func(args, Box::new(ret)));
+
+        non_func.or(func).spanned()
     })
 }
 

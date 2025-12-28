@@ -1,4 +1,4 @@
-use chumsky::input::{Stream, ValueInput};
+use chumsky::input::{IterInput, ValueInput};
 use chumsky::pratt::*;
 use chumsky::prelude::*;
 use logos::Logos;
@@ -14,7 +14,7 @@ pub fn parse_from_source<'toks, 'src: 'toks>(
         Err(()) => (Token::Error, span.into()),
     });
 
-    let stream = Stream::from_iter(toks).map((0..src.len()).into(), |(t, s): (_, _)| (t, s));
+    let stream = IterInput::new(toks, (src.len()..src.len()).into());
 
     root_parser().parse(stream)
 }

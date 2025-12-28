@@ -17,9 +17,10 @@ pub enum Expr<'src> {
         Spanned<BinOp>,
         Box<Spanned<Expr<'src>>>,
     ),
+    Unary(Spanned<UnaryOp>, Box<Spanned<Expr<'src>>>),
     Block(Box<Block<'src>>),
     Fn(Box<Func<'src>>),
-    Binding(Box<Binding<'src>>)
+    Binding(Box<Binding<'src>>),
 }
 
 #[derive(Debug, Clone)]
@@ -30,10 +31,66 @@ pub struct Block<'src> {
 
 #[derive(Debug, Clone)]
 pub enum BinOp {
+    /// `+`
     Add,
+    /// `-`
     Sub,
+    /// `*`
     Mul,
+    /// `/`
     Div,
+    /// `%`
+    Mod,
+
+    /// `<`
+    Lt,
+    // `>`
+    Gt,
+    /// `==`
+    Equality,
+    /// `!=`
+    Inequality,
+    /// `<=`
+    LtEquality,
+    /// `>=`
+    GtEquality,
+
+    /// `&`
+    BwAnd,
+    /// `^`
+    BwXor,
+    /// `|`
+    BwOr,
+
+    /// `&&`
+    LogicalAnd,
+    /// `||`
+    LogicalOr,
+    /// `:>`
+    MethodPipe,
+    /// `~>`
+    FuncPipe,
+
+    /// `~?`
+    ErrProp,
+
+    /// `<<`
+    ShiftL,
+    /// `>>`
+    ShiftR,
+
+    /// `..`
+    Range,
+    /// `..=`
+    RangeIncl,
+}
+
+#[derive(Debug, Clone)]
+pub enum UnaryOp {
+    Neg,
+    Not,
+    Deref,
+    Ref,
 }
 
 #[derive(Debug, Clone)]

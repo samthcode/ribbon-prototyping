@@ -1,9 +1,9 @@
 use chumsky::input::{IterInput, ValueInput};
-use chumsky::pratt::*;
+use chumsky::pratt::{infix, left, none, prefix};
 use chumsky::prelude::*;
 use logos::Logos;
 
-use crate::ast::{BinOp, Binding, Block, Expr, Func, Param, Pat, Ty};
+use crate::ast::{BinOp, Binding, Block, Expr, Func, Param, Pat, Ty, UnaryOp};
 use crate::tok::Token;
 
 pub fn parse_from_source<'toks, 'src: 'toks>(
@@ -148,21 +148,147 @@ where
 
         let atom = choice((terminal, r#fn, block, list, paren_expr));
 
-        let infix_op = |prec, tok, bin_op| {
-            infix(
+        let prefix_op = |prec, tok, unary_op| {
+            prefix(
                 prec,
-                just(tok).to(bin_op).spanned(),
-                |lhs: Spanned<Expr<'_>>, op, rhs, _| {
-                    let span = SimpleSpan::from(lhs.span.start..rhs.span.end);
-                    Expr::Bin(Box::new(lhs), op, Box::new(rhs)).with_span(span)
+                just(tok).to(unary_op).spanned(),
+                |op: Spanned<UnaryOp>, rhs: Spanned<Expr<'_>>, s| {
+                    Expr::Unary(op, Box::new(rhs)).with_span(s.span())
                 },
             )
         };
+
         let pratt = atom.pratt((
-            infix_op(left(2), Token::Mul, BinOp::Mul),
-            infix_op(left(2), Token::Div, BinOp::Div),
-            infix_op(left(1), Token::Plus, BinOp::Add),
-            infix_op(left(1), Token::Minus, BinOp::Sub),
+            // Propagate error
+            infix(
+                left(12),
+                just(Token::TildeQuestion).to(BinOp::ErrProp).spanned(),
+                |lhs: Spanned<Expr<'_>>, op, rhs, s| {
+                    Expr::Bin(Box::new(lhs), op, Box::new(rhs)).with_span(s.span())
+                },
+            ),
+            // Unary
+            prefix_op(11, Token::Minus, UnaryOp::Neg),
+            prefix_op(11, Token::Bang, UnaryOp::Not),
+            prefix_op(11, Token::Mul, UnaryOp::Deref),
+            prefix_op(11, Token::Amp, UnaryOp::Ref),
+            // Algebraic
+            infix(
+                left(10),
+                select! {
+                    Token::Mul => BinOp::Mul,
+                    Token::Div => BinOp::Div,
+                    Token::Mod => BinOp::Mod
+                }
+                .spanned(),
+                |lhs: Spanned<Expr<'_>>, op, rhs, s| {
+                    Expr::Bin(Box::new(lhs), op, Box::new(rhs)).with_span(s.span())
+                },
+            ),
+            infix(
+                left(9),
+                select! {
+                    Token::Plus => BinOp::Add,
+                    Token::Minus => BinOp::Sub
+                }
+                .spanned(),
+                |lhs: Spanned<Expr<'_>>, op, rhs, s| {
+                    Expr::Bin(Box::new(lhs), op, Box::new(rhs)).with_span(s.span())
+                },
+            ),
+            // Bitwise
+            infix(
+                left(8),
+                select! {
+                    Token::ShiftL => BinOp::ShiftL,
+                    Token::ShiftR => BinOp::ShiftR
+                }
+                .spanned(),
+                |lhs: Spanned<Expr<'_>>, op, rhs, s| {
+                    Expr::Bin(Box::new(lhs), op, Box::new(rhs)).with_span(s.span())
+                },
+            ),
+            infix(
+                left(7),
+                just(Token::Amp).to(BinOp::BwAnd).spanned(),
+                |lhs: Spanned<Expr<'_>>, op, rhs, s| {
+                    Expr::Bin(Box::new(lhs), op, Box::new(rhs)).with_span(s.span())
+                },
+            ),
+            infix(
+                left(6),
+                just(Token::Caret).to(BinOp::BwXor).spanned(),
+                |lhs: Spanned<Expr<'_>>, op, rhs, s| {
+                    Expr::Bin(Box::new(lhs), op, Box::new(rhs)).with_span(s.span())
+                },
+            ),
+            infix(
+                left(5),
+                just(Token::Pipe).to(BinOp::BwOr).spanned(),
+                |lhs: Spanned<Expr<'_>>, op, rhs, s| {
+                    Expr::Bin(Box::new(lhs), op, Box::new(rhs)).with_span(s.span())
+                },
+            ),
+            // Comparison
+            infix(
+                left(4),
+                select! {
+                    Token::GtEq => BinOp::GtEquality,
+                    Token::LtEq => BinOp::LtEquality,
+                    Token::BangEq => BinOp::Inequality,
+                    Token::Eq => BinOp::Equality,
+                    Token::Gt => BinOp::Gt,
+                    Token::Lt => BinOp::Lt,
+                }
+                .spanned(),
+                |lhs: Spanned<Expr<'_>>, op, rhs, s| {
+                    Expr::Bin(Box::new(lhs), op, Box::new(rhs)).with_span(s.span())
+                },
+            ),
+            infix(
+                left(3),
+                just(Token::And).to(BinOp::LogicalAnd).spanned(),
+                |lhs: Spanned<Expr<'_>>, op, rhs, s| {
+                    Expr::Bin(Box::new(lhs), op, Box::new(rhs)).with_span(s.span())
+                },
+            ),
+            infix(
+                left(2),
+                just(Token::Or).to(BinOp::LogicalOr).spanned(),
+                |lhs: Spanned<Expr<'_>>, op, rhs, s| {
+                    Expr::Bin(Box::new(lhs), op, Box::new(rhs)).with_span(s.span())
+                },
+            ),
+            // Ranges
+            infix(
+                none(1),
+                just(Token::DotDotEq).to(BinOp::RangeIncl).spanned(),
+                |lhs: Spanned<Expr<'_>>, op, rhs, s| {
+                    Expr::Bin(Box::new(lhs), op, Box::new(rhs)).with_span(s.span())
+                },
+            ),
+            infix(
+                none(1),
+                just(Token::DotDot).to(BinOp::Range).spanned(),
+                |lhs: Spanned<Expr<'_>>, op, rhs, s| {
+                    Expr::Bin(Box::new(lhs), op, Box::new(rhs)).with_span(s.span())
+                },
+            ),
+            // Piping
+            infix(
+                left(0),
+                just(Token::ColonGt).to(BinOp::MethodPipe).spanned(),
+                |lhs: Spanned<Expr<'_>>, op, rhs, s| {
+                    Expr::Bin(Box::new(lhs), op, Box::new(rhs)).with_span(s.span())
+                },
+            ),
+            infix(
+                left(0),
+                just(Token::TildeGt).to(BinOp::FuncPipe).spanned(),
+                |lhs: Spanned<Expr<'_>>, op, rhs, s| {
+                    Expr::Bin(Box::new(lhs), op, Box::new(rhs)).with_span(s.span())
+                },
+            ),
         ));
         pratt
     })

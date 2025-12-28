@@ -3,7 +3,7 @@ use chumsky::pratt::*;
 use chumsky::prelude::*;
 use logos::Logos;
 
-use crate::ast::{BinOp, Binding, Expr, Pat, Ty};
+use crate::ast::{BinOp, Binding, Block, Expr, Fn, Param, Pat, Ty};
 use crate::tok::Token;
 
 pub fn parse_from_source<'toks, 'src: 'toks>(
@@ -70,10 +70,66 @@ where
             .delimited_by(just(Token::LSquare), just(Token::RSquare))
             .spanned();
         let paren_expr = expr
+            .clone()
             .map(|e| e.inner)
             .delimited_by(just(Token::LParen), just(Token::RParen))
             .spanned();
-        let atom = terminal.or(list).or(paren_expr);
+
+        let block = expr
+            .clone()
+            .separated_by(just(Token::Semi).repeated())
+            .collect::<Vec<_>>()
+            .then(just(Token::Semi).or_not())
+            .delimited_by(just(Token::LCurly), just(Token::RCurly))
+            .map(|(stmts, semi)| {
+                if semi.is_some() || stmts.is_empty() {
+                    Expr::Block(Box::new(Block { stmts, ret: None }))
+                } else {
+                    Expr::Block(Box::new(Block {
+                        stmts: stmts[0..stmts.len() - 1].into(),
+                        ret: Some(stmts[stmts.len() - 1].clone()),
+                    }))
+                }
+            })
+            .spanned();
+
+        let param = pat_parser()
+            .then_ignore(just(Token::Colon))
+            .then(ty_parser())
+            .then(just(Token::Eq).ignore_then(expr.clone()).or_not())
+            .map(|((pat, ty), default)| Param { pat, ty, default })
+            .spanned();
+        let params = param
+            .separated_by(just(Token::Comma))
+            .collect::<Vec<_>>()
+            .delimited_by(just(Token::LParen), just(Token::RParen))
+            .boxed();
+        let r#fn = choice((
+            params
+                .clone()
+                .then(just(Token::MinusGt).ignore_then(ty_parser()))
+                .then(
+                    just(Token::EqGt)
+                        .ignore_then(expr.clone())
+                        .or(block.clone()),
+                )
+                .map(|((params, ty), body)| Fn {
+                    params,
+                    ty: Some(ty),
+                    body,
+                }),
+            params
+                .then_ignore(just(Token::EqGt))
+                .then(expr)
+                .map(|(params, body)| Fn {
+                    params,
+                    ty: None,
+                    body,
+                }),
+        ))
+        .map(|f| Expr::Fn(Box::new(f)))
+        .spanned();
+        let atom = choice((terminal, r#fn, block, list, paren_expr)).boxed();
 
         let infix_op = |prec, tok, bin_op| {
             infix(

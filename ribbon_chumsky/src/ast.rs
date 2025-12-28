@@ -18,6 +18,16 @@ pub enum Expr<'src> {
         Spanned<BinOp>,
         Box<Spanned<Expr<'src>>>,
     ),
+
+    Block(Box<Block<'src>>),
+
+    Fn(Box<Fn<'src>>),
+}
+
+#[derive(Debug, Clone)]
+pub struct Block<'src> {
+    pub stmts: Vec<Spanned<Expr<'src>>>,
+    pub ret: Option<Spanned<Expr<'src>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -48,12 +58,14 @@ pub enum Ty<'src> {
 
 #[derive(Debug, Clone)]
 pub struct Fn<'src> {
-    pub args: Vec<Spanned<Arg<'src>>>,
-    pub body: Vec<Spanned<Expr<'src>>>,
+    pub params: Vec<Spanned<Param<'src>>>,
+    pub ty: Option<Spanned<Ty<'src>>>,
+    pub body: Spanned<Expr<'src>>,
 }
 
 #[derive(Debug, Clone)]
-pub struct Arg<'src> {
-    pub name: &'src str,
+pub struct Param<'src> {
+    pub pat: Spanned<Pat<'src>>,
+    pub ty: Spanned<Ty<'src>>,
     pub default: Option<Spanned<Expr<'src>>>,
 }

@@ -69,7 +69,10 @@ where
             .map(Expr::List)
             .delimited_by(just(Token::LSquare), just(Token::RSquare))
             .spanned();
-        let paren_expr = expr.delimited_by(just(Token::LParen), just(Token::RParen));
+        let paren_expr = expr
+            .map(|e| e.inner)
+            .delimited_by(just(Token::LParen), just(Token::RParen))
+            .spanned();
         let atom = terminal.or(list).or(paren_expr);
 
         let infix_op = |prec, tok, bin_op| {

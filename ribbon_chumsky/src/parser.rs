@@ -26,7 +26,7 @@ where
 {
     // A module is comprised purely of bindings for functions, structs, traits, enums, constants etc.
     binding_parser(expr_parser())
-        .separated_by(just(Token::Semi).repeated())
+        .separated_by(just(Token::Semi).repeated().at_least(1))
         .allow_trailing()
         .collect()
 }
@@ -90,7 +90,7 @@ where
             .spanned();
 
         let block = stmt
-            .separated_by(just(Token::Semi).repeated())
+            .separated_by(just(Token::Semi).repeated().at_least(1))
             .collect::<Vec<_>>()
             .then(just(Token::Semi).or_not())
             .delimited_by(just(Token::LCurly), just(Token::RCurly))

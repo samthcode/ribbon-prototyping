@@ -82,7 +82,7 @@ where
             Token::LitBool(b) => Expr::Bool(b)
         }
         .spanned()
-        .or(path);
+        .or(path.clone());
 
         let list = expr
             .clone()
@@ -161,6 +161,7 @@ where
         .labelled("function");
 
         let argument_list = expr
+            .clone()
             .separated_by(just(Token::Comma))
             .collect::<Vec<_>>()
             .delimited_by(just(Token::LParen), just(Token::RParen));
@@ -200,7 +201,7 @@ where
             .clone()
             .then_ignore(just(Token::Tilde))
             .then(path_parser(ty_parser()))
-            .then(argument_list.or_not())
+            .then(argument_list.clone().or_not())
             .map(|((object, function), arguments)| {
                 Expr::ChainedFunctionCall(Box::new(MethodStyleCall {
                     object,
@@ -211,7 +212,13 @@ where
             .spanned()
             .boxed();
 
+        let function_call = paren_expr.clone().or(path).foldl_with(
+            argument_list.repeated().at_least(1),
+            |expr, arguments, e| Expr::FunctionCall(Box::new(expr), arguments).with_span(e.span()),
+        );
+
         let atom = choice((
+            function_call,
             field_access_or_method_call,
             colon_method_call,
             chained_function_call,

@@ -23,6 +23,8 @@ pub enum Expr<'src> {
     Fn(Box<Func<'src>>),
     Binding(Box<Binding<'src>>),
 
+    FunctionCall(Box<Spanned<Expr<'src>>>, Vec<Spanned<Expr<'src>>>),
+
     FieldAccess(Box<Spanned<Expr<'src>>>, Spanned<&'src str>),
     MethodCall(Box<MethodStyleCall<'src, &'src str>>),
     ChainedFunctionCall(Box<MethodStyleCall<'src, Path<'src>>>),

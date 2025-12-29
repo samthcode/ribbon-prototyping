@@ -82,12 +82,12 @@ where
             .collect::<Vec<_>>()
             .map(Expr::List)
             .delimited_by(just(Token::LSquare), just(Token::RSquare))
-            .spanned();
+            .spanned().labelled("list expression");
         let paren_expr = expr
             .clone()
             .map(|e| e.inner)
             .delimited_by(just(Token::LParen), just(Token::RParen))
-            .spanned();
+            .spanned().labelled("parenthesised expression");
 
         let block = stmt
             .separated_by(just(Token::Semi).repeated().at_least(1))
@@ -105,7 +105,7 @@ where
                 }
             })
             .spanned()
-            .boxed();
+            .boxed().labelled("block");
 
         let param = pat_parser()
             .then_ignore(just(Token::Colon))

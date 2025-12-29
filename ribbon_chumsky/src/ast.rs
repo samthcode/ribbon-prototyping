@@ -22,6 +22,26 @@ pub enum Expr<'src> {
     Block(Box<Block<'src>>),
     Fn(Box<Func<'src>>),
     Binding(Box<Binding<'src>>),
+
+    FieldAccess(Spanned<Path<'src>>, Spanned<&'src str>),
+    MethodCall(MethodStyleCall<'src, &'src str>),
+    ChainedFunctionCall(MethodStyleCall<'src, Path<'src>>),
+}
+
+/// A generic method-style call, which could be `.`, `:`, or `~`
+/// a := "hello world"
+/// a     .slice    (" ")
+/// ^      ^^^^^     ^^^
+/// object function  arguments
+///
+/// Note that for this to be `.`, parentheses must be present, otherwise it is a field access
+#[derive(Debug, Clone)]
+pub struct MethodStyleCall<'src, T> {
+    pub object: Spanned<Path<'src>>,
+    pub function: Spanned<T>,
+    /// The `Option` denotes that there may not be parentheses after the function name.
+    /// This is only possible with `:` and `~`
+    pub arguments: Option<Vec<Spanned<Expr<'src>>>>,
 }
 
 #[derive(Debug, Clone)]

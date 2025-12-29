@@ -13,6 +13,7 @@ pub enum Expr<'src> {
     Bool(bool),
 
     List(Vec<Spanned<Expr<'src>>>),
+    ListIndex(Box<Spanned<Expr<'src>>>, Box<Spanned<Expr<'src>>>),
     Bin(
         Box<Spanned<Expr<'src>>>,
         Spanned<BinOp>,

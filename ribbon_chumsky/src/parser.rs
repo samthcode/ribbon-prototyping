@@ -1,5 +1,5 @@
 use chumsky::input::{IterInput, ValueInput};
-use chumsky::pratt::{infix, left, none, prefix};
+use chumsky::pratt::{infix, left, none, postfix, prefix};
 use chumsky::prelude::*;
 use logos::Logos;
 
@@ -162,6 +162,7 @@ where
 
         let argument_list = expr
             .clone()
+            .labelled("function argument")
             .separated_by(just(Token::Comma))
             .collect::<Vec<_>>()
             .delimited_by(just(Token::LParen), just(Token::RParen));
@@ -212,13 +213,7 @@ where
             .spanned()
             .boxed();
 
-        let function_call = paren_expr.clone().or(path).foldl_with(
-            argument_list.repeated().at_least(1),
-            |expr, arguments, e| Expr::FunctionCall(Box::new(expr), arguments).with_span(e.span()),
-        );
-
         let atom = choice((
-            function_call,
             field_access_or_method_call,
             colon_method_call,
             chained_function_call,
@@ -242,10 +237,29 @@ where
         let pratt = atom.pratt((
             // Propagate error
             infix(
-                left(12),
+                left(13),
                 just(Token::TildeQuestion).to(BinOp::ErrProp).spanned(),
                 |lhs: Spanned<Expr<'_>>, op, rhs, s| {
                     Expr::Bin(Box::new(lhs), op, Box::new(rhs)).with_span(s.span())
+                },
+            ),
+            // Function call
+            postfix(
+                12,
+                argument_list,
+                |object: Spanned<Expr<'_>>, arguments, s| {
+                    Expr::FunctionCall(Box::new(object), arguments).with_span(s.span())
+                },
+            ),
+            // List index
+            postfix(
+                12,
+                just(Token::Dot).ignore_then(
+                    expr.labelled("list index")
+                        .delimited_by(just(Token::LSquare), just(Token::RSquare)),
+                ),
+                |list: Spanned<Expr<'_>>, idx: Spanned<Expr<'src>>, s| {
+                    Expr::ListIndex(Box::new(list), Box::new(idx)).with_span(s.span())
                 },
             ),
             // Unary
@@ -343,14 +357,11 @@ where
             // Ranges
             infix(
                 none(1),
-                just(Token::DotDotEq).to(BinOp::RangeIncl).spanned(),
-                |lhs: Spanned<Expr<'_>>, op, rhs, s| {
-                    Expr::Bin(Box::new(lhs), op, Box::new(rhs)).with_span(s.span())
-                },
-            ),
-            infix(
-                none(1),
-                just(Token::DotDot).to(BinOp::Range).spanned(),
+                select! {
+                    Token::DotDot => BinOp::Range,
+                    Token::DotDotEq => BinOp::RangeIncl
+                }
+                .spanned(),
                 |lhs: Spanned<Expr<'_>>, op, rhs, s| {
                     Expr::Bin(Box::new(lhs), op, Box::new(rhs)).with_span(s.span())
                 },

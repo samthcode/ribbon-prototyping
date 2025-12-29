@@ -332,6 +332,7 @@ where
 {
     path_segment_parser(ty_parser)
         .separated_by(just(Token::Path))
+        .at_least(1)
         .collect::<Vec<_>>()
         .map(|segments| Path { segments })
         .spanned()

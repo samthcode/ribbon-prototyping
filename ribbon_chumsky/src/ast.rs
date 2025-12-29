@@ -23,9 +23,9 @@ pub enum Expr<'src> {
     Fn(Box<Func<'src>>),
     Binding(Box<Binding<'src>>),
 
-    FieldAccess(Spanned<Path<'src>>, Spanned<&'src str>),
-    MethodCall(MethodStyleCall<'src, &'src str>),
-    ChainedFunctionCall(MethodStyleCall<'src, Path<'src>>),
+    FieldAccess(Box<Spanned<Expr<'src>>>, Spanned<&'src str>),
+    MethodCall(Box<MethodStyleCall<'src, &'src str>>),
+    ChainedFunctionCall(Box<MethodStyleCall<'src, Path<'src>>>),
 }
 
 /// A generic method-style call, which could be `.`, `:`, or `~`
@@ -37,7 +37,7 @@ pub enum Expr<'src> {
 /// Note that for this to be `.`, parentheses must be present, otherwise it is a field access
 #[derive(Debug, Clone)]
 pub struct MethodStyleCall<'src, T> {
-    pub object: Spanned<Path<'src>>,
+    pub object: Spanned<Expr<'src>>,
     pub function: Spanned<T>,
     /// The `Option` denotes that there may not be parentheses after the function name.
     /// This is only possible with `:` and `~`

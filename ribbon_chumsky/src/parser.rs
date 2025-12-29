@@ -68,6 +68,11 @@ where
 
         let stmt = binding.or(expr.clone());
 
+        let path = path_parser(ty_parser())
+            .map(|p| Expr::Path(p.inner))
+            .spanned()
+            .boxed();
+
         let terminal = select! {
             Token::LitNumber(n) => Expr::Num(n),
             // TODO: Process the string and deal with unterminated string
@@ -76,7 +81,9 @@ where
             Token::LitChar(c) => Expr::Char(c[1..2].parse().unwrap()),
             Token::LitBool(b) => Expr::Bool(b)
         }
-        .spanned();
+        .spanned()
+        .or(path);
+
         let list = expr
             .clone()
             .separated_by(just(Token::Comma))
@@ -153,55 +160,53 @@ where
         .boxed()
         .labelled("function");
 
-        let path = path_parser(ty_parser())
-            .map(|p| Expr::Path(p.inner))
-            .spanned()
-            .boxed();
-
         let argument_list = expr
             .separated_by(just(Token::Comma))
             .collect::<Vec<_>>()
             .delimited_by(just(Token::LParen), just(Token::RParen));
 
-        let field_access_or_method_call = path_parser(ty_parser())
+        let field_access_or_method_call = terminal
+            .clone()
             .then_ignore(just(Token::Dot))
             .then(select! {Token::Ident(i) => i}.spanned())
             .then(argument_list.clone().or_not())
-            .map(|((path, name), arguments)| match arguments {
-                Some(arguments) => Expr::MethodCall(MethodStyleCall {
-                    object: path,
+            .map(|((object, name), arguments)| match arguments {
+                Some(arguments) => Expr::MethodCall(Box::new(MethodStyleCall {
+                    object,
                     function: name,
                     arguments: Some(arguments),
-                }),
-                None => Expr::FieldAccess(path, name),
+                })),
+                None => Expr::FieldAccess(Box::new(object), name),
             })
             .spanned()
             .boxed();
 
-        let colon_method_call = path_parser(ty_parser())
+        let colon_method_call = terminal
+            .clone()
             .then_ignore(just(Token::Colon))
             .then(select! {Token::Ident(i) => i}.spanned())
             .then(argument_list.clone().or_not())
-            .map(|((path, name), arguments)| {
-                Expr::MethodCall(MethodStyleCall {
-                    object: path,
+            .map(|((object, name), arguments)| {
+                Expr::MethodCall(Box::new(MethodStyleCall {
+                    object,
                     function: name,
                     arguments,
-                })
+                }))
             })
             .spanned()
             .boxed();
 
-        let chained_function_call = path_parser(ty_parser())
+        let chained_function_call = terminal
+            .clone()
             .then_ignore(just(Token::Tilde))
             .then(path_parser(ty_parser()))
             .then(argument_list.or_not())
-            .map(|((path, function), arguments)| {
-                Expr::ChainedFunctionCall(MethodStyleCall {
-                    object: path,
+            .map(|((object, function), arguments)| {
+                Expr::ChainedFunctionCall(Box::new(MethodStyleCall {
+                    object,
                     function,
                     arguments,
-                })
+                }))
             })
             .spanned()
             .boxed();
@@ -210,7 +215,6 @@ where
             field_access_or_method_call,
             colon_method_call,
             chained_function_call,
-            path,
             terminal,
             r#fn,
             block,

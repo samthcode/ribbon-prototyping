@@ -3,7 +3,9 @@ use chumsky::pratt::{infix, left, none, prefix};
 use chumsky::prelude::*;
 use logos::Logos;
 
-use crate::ast::{BinOp, Binding, Block, Expr, Func, Param, Pat, Path, PathSegment, Ty, UnaryOp};
+use crate::ast::{
+    BinOp, Binding, Block, Expr, Func, MethodStyleCall, Param, Pat, Path, PathSegment, Ty, UnaryOp,
+};
 use crate::tok::Token;
 
 pub fn parse_from_source<'toks, 'src: 'toks>(
@@ -82,12 +84,14 @@ where
             .collect::<Vec<_>>()
             .map(Expr::List)
             .delimited_by(just(Token::LSquare), just(Token::RSquare))
-            .spanned().labelled("list expression");
+            .spanned()
+            .labelled("list expression");
         let paren_expr = expr
             .clone()
             .map(|e| e.inner)
             .delimited_by(just(Token::LParen), just(Token::RParen))
-            .spanned().labelled("parenthesised expression");
+            .spanned()
+            .labelled("parenthesised expression");
 
         let block = stmt
             .separated_by(just(Token::Semi).repeated().at_least(1))
@@ -105,7 +109,8 @@ where
                 }
             })
             .spanned()
-            .boxed().labelled("block");
+            .boxed()
+            .labelled("block");
 
         let param = pat_parser()
             .then_ignore(just(Token::Colon))
@@ -136,7 +141,7 @@ where
                 }),
             params
                 .then_ignore(just(Token::EqGt))
-                .then(expr)
+                .then(expr.clone())
                 .map(|(params, body)| Func {
                     params,
                     ty: None,
@@ -153,7 +158,65 @@ where
             .spanned()
             .boxed();
 
-        let atom = choice((path, terminal, r#fn, block, list, paren_expr));
+        let argument_list = expr
+            .separated_by(just(Token::Comma))
+            .collect::<Vec<_>>()
+            .delimited_by(just(Token::LParen), just(Token::RParen));
+
+        let field_access_or_method_call = path_parser(ty_parser())
+            .then_ignore(just(Token::Dot))
+            .then(select! {Token::Ident(i) => i}.spanned())
+            .then(argument_list.clone().or_not())
+            .map(|((path, name), arguments)| match arguments {
+                Some(arguments) => Expr::MethodCall(MethodStyleCall {
+                    object: path,
+                    function: name,
+                    arguments: Some(arguments),
+                }),
+                None => Expr::FieldAccess(path, name),
+            })
+            .spanned()
+            .boxed();
+
+        let colon_method_call = path_parser(ty_parser())
+            .then_ignore(just(Token::Colon))
+            .then(select! {Token::Ident(i) => i}.spanned())
+            .then(argument_list.clone().or_not())
+            .map(|((path, name), arguments)| {
+                Expr::MethodCall(MethodStyleCall {
+                    object: path,
+                    function: name,
+                    arguments,
+                })
+            })
+            .spanned()
+            .boxed();
+
+        let chained_function_call = path_parser(ty_parser())
+            .then_ignore(just(Token::Tilde))
+            .then(path_parser(ty_parser()))
+            .then(argument_list.or_not())
+            .map(|((path, function), arguments)| {
+                Expr::ChainedFunctionCall(MethodStyleCall {
+                    object: path,
+                    function,
+                    arguments,
+                })
+            })
+            .spanned()
+            .boxed();
+
+        let atom = choice((
+            field_access_or_method_call,
+            colon_method_call,
+            chained_function_call,
+            path,
+            terminal,
+            r#fn,
+            block,
+            list,
+            paren_expr,
+        ));
 
         let prefix_op = |prec, tok, unary_op| {
             prefix(

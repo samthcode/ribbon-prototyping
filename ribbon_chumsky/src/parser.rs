@@ -112,12 +112,14 @@ where
             .then(ty_parser())
             .then(just(Token::Eq).ignore_then(expr.clone()).or_not())
             .map(|((pat, ty), default)| Param { pat, ty, default })
-            .spanned();
+            .spanned()
+            .labelled("parameter");
         let params = param
             .separated_by(just(Token::Comma))
             .collect::<Vec<_>>()
             .delimited_by(just(Token::LParen), just(Token::RParen))
-            .boxed();
+            .boxed()
+            .labelled("parameter list");
         let r#fn = choice((
             params
                 .clone()
@@ -143,7 +145,8 @@ where
         ))
         .map(|f| Expr::Fn(Box::new(f)))
         .spanned()
-        .boxed();
+        .boxed()
+        .labelled("function");
 
         let path = path_parser(ty_parser())
             .map(|p| Expr::Path(p.inner))
@@ -294,7 +297,7 @@ where
                 },
             ),
         ));
-        pratt
+        pratt.labelled("expression")
     })
 }
 
@@ -317,7 +320,7 @@ where
             .then(ty)
             .map(|(args, ret)| Ty::Func(args, Box::new(ret)));
 
-        path.or(func).spanned()
+        path.or(func).spanned().labelled("type")
     })
 }
 
@@ -332,6 +335,7 @@ where
         .collect::<Vec<_>>()
         .map(|segments| Path { segments })
         .spanned()
+        .labelled("path")
 }
 
 fn path_segment_parser<'toks, 'src: 'toks, I>(
@@ -356,6 +360,7 @@ where
         None => PathSegment::Ident(name),
     })
     .spanned()
+    .labelled("path segment")
 }
 
 fn pat_parser<'toks, 'src: 'toks, I>()
@@ -367,4 +372,5 @@ where
         Token::Ident(i) => Pat::Ident(i)
     }
     .spanned()
+    .labelled("pattern")
 }

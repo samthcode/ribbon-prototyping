@@ -3,7 +3,7 @@ use chumsky::pratt::{infix, left, none, prefix};
 use chumsky::prelude::*;
 use logos::Logos;
 
-use crate::ast::{BinOp, Binding, Block, Expr, Func, Param, Pat, Ty, UnaryOp};
+use crate::ast::{BinOp, Binding, Block, Expr, Func, Param, Pat, Path, PathSegment, Ty, UnaryOp};
 use crate::tok::Token;
 
 pub fn parse_from_source<'toks, 'src: 'toks>(
@@ -67,7 +67,6 @@ where
         let stmt = binding.or(expr.clone());
 
         let terminal = select! {
-            Token::Ident(i) => Expr::Var(i),
             Token::LitNumber(n) => Expr::Num(n),
             // TODO: Process the string and deal with unterminated string
             Token::LitString(s) => Expr::String(&s[1..s.len()-1]),
@@ -146,7 +145,12 @@ where
         .spanned()
         .boxed();
 
-        let atom = choice((terminal, r#fn, block, list, paren_expr));
+        let path = path_parser(ty_parser())
+            .map(|p| Expr::Path(p.inner))
+            .spanned()
+            .boxed();
+
+        let atom = choice((path, terminal, r#fn, block, list, paren_expr));
 
         let prefix_op = |prec, tok, unary_op| {
             prefix(
@@ -300,21 +304,9 @@ where
     I: ValueInput<'toks, Token = Token<'src>, Span = SimpleSpan>,
 {
     recursive(|ty| {
-        let non_func = select! {
-            Token::Ident(i) => i
-        }
-        .then(
-            ty.clone()
-                .separated_by(just(Token::Comma))
-                .allow_trailing()
-                .collect::<Vec<_>>()
-                .delimited_by(just(Token::LSquare), just(Token::RSquare))
-                .or_not(),
-        )
-        .map(|(name, maybe_args)| match maybe_args {
-            Some(args) => Ty::Generic(name, args),
-            None => Ty::Concrete(name),
-        });
+        let path = path_parser(ty.clone())
+            .map(|path| Ty::Path(path.inner))
+            .boxed();
 
         let func = ty
             .clone()
@@ -325,8 +317,45 @@ where
             .then(ty)
             .map(|(args, ret)| Ty::Func(args, Box::new(ret)));
 
-        non_func.or(func).spanned()
+        path.or(func).spanned()
     })
+}
+
+fn path_parser<'toks, 'src: 'toks, I>(
+    ty_parser: impl Parser<'toks, I, Spanned<Ty<'src>>, chumsky::extra::Err<Rich<'toks, Token<'src>>>>,
+) -> impl Parser<'toks, I, Spanned<Path<'src>>, chumsky::extra::Err<Rich<'toks, Token<'src>>>>
+where
+    I: ValueInput<'toks, Token = Token<'src>, Span = SimpleSpan>,
+{
+    path_segment_parser(ty_parser)
+        .separated_by(just(Token::Path))
+        .collect::<Vec<_>>()
+        .map(|segments| Path { segments })
+        .spanned()
+}
+
+fn path_segment_parser<'toks, 'src: 'toks, I>(
+    ty_parser: impl Parser<'toks, I, Spanned<Ty<'src>>, chumsky::extra::Err<Rich<'toks, Token<'src>>>>,
+) -> impl Parser<'toks, I, Spanned<PathSegment<'src>>, chumsky::extra::Err<Rich<'toks, Token<'src>>>>
+where
+    I: ValueInput<'toks, Token = Token<'src>, Span = SimpleSpan>,
+{
+    select! {
+        Token::Ident(i) => i
+    }
+    .then(
+        ty_parser
+            .separated_by(just(Token::Comma))
+            .allow_trailing()
+            .collect::<Vec<_>>()
+            .delimited_by(just(Token::LSquare), just(Token::RSquare))
+            .or_not(),
+    )
+    .map(|(name, maybe_args)| match maybe_args {
+        Some(args) => PathSegment::Ty(name, args),
+        None => PathSegment::Ident(name),
+    })
+    .spanned()
 }
 
 fn pat_parser<'toks, 'src: 'toks, I>()

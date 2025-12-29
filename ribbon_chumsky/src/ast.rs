@@ -4,7 +4,8 @@ use chumsky::span::Spanned;
 
 #[derive(Debug, Clone)]
 pub enum Expr<'src> {
-    Var(&'src str),
+    /// This includes variables - everything is a path
+    Path(Path<'src>),
 
     Num(&'src str),
     String(&'src str),
@@ -21,6 +22,19 @@ pub enum Expr<'src> {
     Block(Box<Block<'src>>),
     Fn(Box<Func<'src>>),
     Binding(Box<Binding<'src>>),
+}
+
+#[derive(Debug, Clone)]
+pub struct Path<'src> {
+    pub segments: Vec<Spanned<PathSegment<'src>>>,
+}
+
+#[derive(Debug, Clone)]
+pub enum PathSegment<'src> {
+    /// Identifier or concrete type
+    Ident(&'src str),
+    /// Generic type
+    Ty(&'src str, Vec<Spanned<Ty<'src>>>),
 }
 
 #[derive(Debug, Clone)]
@@ -107,8 +121,7 @@ pub enum Pat<'src> {
 
 #[derive(Debug, Clone)]
 pub enum Ty<'src> {
-    Concrete(&'src str),
-    Generic(&'src str, Vec<Spanned<Ty<'src>>>),
+    Path(Path<'src>),
     Func(Vec<Spanned<Ty<'src>>>, Box<Spanned<Ty<'src>>>),
 }
 

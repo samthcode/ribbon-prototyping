@@ -4,7 +4,8 @@ use chumsky::prelude::*;
 use logos::Logos;
 
 use crate::ast::{
-    BinOp, Binding, Block, Expr, Func, MethodStyleCall, Param, Pat, Path, PathSegment, Ty, UnaryOp,
+    BinOp, Binding, Block, Expr, Func, Ident, MethodStyleCall, Param, Pat, Path, PathSegment, Ty,
+    UnaryOp,
 };
 use crate::tok::Token;
 
@@ -431,8 +432,9 @@ where
     I: ValueInput<'toks, Token = Token<'src>, Span = SimpleSpan>,
 {
     select! {
-        Token::Ident(i) => i
+        Token::Ident(i) => Ident(i)
     }
+    .spanned()
     .then(
         ty_parser
             .separated_by(just(Token::Comma))
@@ -441,10 +443,7 @@ where
             .delimited_by(just(Token::LSquare), just(Token::RSquare))
             .or_not(),
     )
-    .map(|(name, maybe_args)| match maybe_args {
-        Some(args) => PathSegment::Ty(name, args),
-        None => PathSegment::Ident(name),
-    })
+    .map(|(ident, generics)| PathSegment { ident, generics })
     .spanned()
     .labelled("path segment")
 }
@@ -455,7 +454,7 @@ where
     I: ValueInput<'toks, Token = Token<'src>, Span = SimpleSpan>,
 {
     select! {
-        Token::Ident(i) => Pat::Ident(i)
+        Token::Ident(i) => Pat::Ident(Ident(i))
     }
     .spanned()
     .labelled("pattern")

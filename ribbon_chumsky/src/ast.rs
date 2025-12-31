@@ -4,7 +4,6 @@ use chumsky::span::Spanned;
 
 #[derive(Debug, Clone)]
 pub enum Expr<'src> {
-    /// This includes variables - everything is a path
     Path(Path<'src>),
 
     Num(&'src str),
@@ -31,6 +30,9 @@ pub enum Expr<'src> {
     ChainedFunctionCall(Box<MethodStyleCall<'src, Path<'src>>>),
 }
 
+#[derive(Debug, Clone)]
+pub struct Ident<'src>(pub &'src str);
+
 /// A generic method-style call, which could be `.`, `:`, or `~`
 /// a := "hello world"
 /// a     .slice    (" ")
@@ -53,11 +55,10 @@ pub struct Path<'src> {
 }
 
 #[derive(Debug, Clone)]
-pub enum PathSegment<'src> {
-    /// Identifier or concrete type
-    Ident(&'src str),
-    /// Generic type
-    Ty(&'src str, Vec<Spanned<Ty<'src>>>),
+pub struct PathSegment<'src> {
+    pub ident: Spanned<Ident<'src>>,
+    /// The `Option` denotes that the segment may not have any generics attached
+    pub generics: Option<Vec<Spanned<Ty<'src>>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -139,7 +140,7 @@ pub struct Binding<'src> {
 
 #[derive(Debug, Clone)]
 pub enum Pat<'src> {
-    Ident(&'src str),
+    Ident(Ident<'src>),
 }
 
 #[derive(Debug, Clone)]

@@ -1,7 +1,10 @@
 use ariadne::{Color, Label, Report, ReportKind, Source};
 
+mod arena;
 mod ast;
+mod ir;
 mod parser;
+mod span;
 mod tok;
 
 use parser::parse_from_source;

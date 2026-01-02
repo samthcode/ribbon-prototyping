@@ -85,8 +85,9 @@ pub struct PathSegment<'src> {
 
 #[derive(Debug, Clone)]
 pub struct Block<'src> {
-    pub stmts: Vec<Spanned<Expr<'src>>>,
-    pub ret: Option<Spanned<Expr<'src>>>,
+    pub items: Vec<Spanned<Item<'src>>>,
+    // TODO(lowering): Verify that this is an expression
+    pub ret: Option<Spanned<Item<'src>>>,
 }
 
 #[derive(Debug, Clone)]

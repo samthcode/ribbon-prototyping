@@ -25,19 +25,26 @@ where
     I: ValueInput<'toks, Token = Token<'src>, Span = SimpleSpan>,
 {
     // A module is comprised purely of bindings for functions, structs, traits, enums, constants etc.
-    item_parser()
+    item_parser(expr_parser())
         .separated_by(just(Token::Semi).repeated().at_least(1))
         .allow_trailing()
         .collect::<Vec<_>>()
 }
 
-fn item_parser<'toks, 'src: 'toks, I>()
--> impl Parser<'toks, I, Spanned<Item<'src>>, chumsky::extra::Err<Rich<'toks, Token<'src>>>>
+fn item_parser<'toks, 'src: 'toks, I>(
+    expr_parser: impl Parser<
+        'toks,
+        I,
+        Spanned<Expr<'src>>,
+        chumsky::extra::Err<Rich<'toks, Token<'src>>>,
+    > + Clone,
+) -> impl Parser<'toks, I, Spanned<Item<'src>>, chumsky::extra::Err<Rich<'toks, Token<'src>>>>
 where
     I: ValueInput<'toks, Token = Token<'src>, Span = SimpleSpan>,
 {
     choice((
-        binding_parser(expr_parser()).map(|b| Item::Binding(b.inner).with_span(b.span)),
+        binding_parser(expr_parser.clone()).map(|b| Item::Binding(b.inner).with_span(b.span)),
+        expr_parser.map(|e| Item::Expr(e.inner).with_span(e.span)),
         type_def_parser().map(|td| Item::TypeDef(td.inner).with_span(td.span)),
     ))
 }
@@ -93,17 +100,11 @@ where
 }
 
 fn expr_parser<'toks, 'src: 'toks, I>()
--> impl Parser<'toks, I, Spanned<Expr<'src>>, chumsky::extra::Err<Rich<'toks, Token<'src>>>>
+-> impl Parser<'toks, I, Spanned<Expr<'src>>, chumsky::extra::Err<Rich<'toks, Token<'src>>>> + Clone
 where
     I: ValueInput<'toks, Token = Token<'src>, Span = SimpleSpan>,
 {
     recursive(|expr| {
-        let binding = binding_parser(expr.clone())
-            .map(|b| Expr::Binding(Box::new(b.inner)))
-            .spanned();
-
-        let stmt = binding.or(expr.clone());
-
         let path = path_parser(ty_parser())
             .map(|p| Expr::Path(p.inner))
             .spanned()
@@ -136,18 +137,18 @@ where
             .spanned()
             .labelled("parenthesised expression");
 
-        let block = stmt
+        let block = item_parser(expr.clone())
             .separated_by(just(Token::Semi).repeated().at_least(1))
             .collect::<Vec<_>>()
             .then(just(Token::Semi).or_not())
             .delimited_by(just(Token::LCurly), just(Token::RCurly))
-            .map(|(stmts, semi)| {
-                if semi.is_some() || stmts.is_empty() {
-                    Expr::Block(Box::new(Block { stmts, ret: None }))
+            .map(|(items, semi)| {
+                if semi.is_some() || items.is_empty() {
+                    Expr::Block(Box::new(Block { items, ret: None }))
                 } else {
                     Expr::Block(Box::new(Block {
-                        stmts: stmts[0..stmts.len() - 1].into(),
-                        ret: Some(stmts[stmts.len() - 1].clone()),
+                        items: items[0..items.len() - 1].into(),
+                        ret: Some(items[items.len() - 1].clone()),
                     }))
                 }
             })

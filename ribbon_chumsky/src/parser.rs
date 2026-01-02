@@ -3,15 +3,12 @@ use chumsky::pratt::{infix, left, none, postfix, prefix};
 use chumsky::prelude::*;
 use logos::Logos;
 
-use crate::ast::{
-    BinOp, Binding, Block, Expr, Func, Ident, MethodStyleCall, Param, Pat, Path, PathSegment, Ty,
-    UnaryOp,
-};
+use crate::ast::*;
 use crate::tok::Token;
 
 pub fn parse_from_source<'toks, 'src: 'toks>(
     src: &'src str,
-) -> ParseResult<Vec<Spanned<Binding<'toks>>>, Rich<'toks, Token<'src>>> {
+) -> ParseResult<Vec<Spanned<Item<'toks>>>, Rich<'toks, Token<'src>>> {
     let toks = Token::lexer(src).spanned().map(|(tok, span)| match tok {
         Ok(tok) => (tok, span.into()),
         Err(()) => (Token::Error, span.into()),
@@ -23,15 +20,53 @@ pub fn parse_from_source<'toks, 'src: 'toks>(
 }
 
 fn root_parser<'toks, 'src: 'toks, I>()
--> impl Parser<'toks, I, Vec<Spanned<Binding<'src>>>, chumsky::extra::Err<Rich<'toks, Token<'src>>>>
+-> impl Parser<'toks, I, Vec<Spanned<Item<'src>>>, chumsky::extra::Err<Rich<'toks, Token<'src>>>>
 where
     I: ValueInput<'toks, Token = Token<'src>, Span = SimpleSpan>,
 {
     // A module is comprised purely of bindings for functions, structs, traits, enums, constants etc.
-    binding_parser(expr_parser())
+    item_parser()
         .separated_by(just(Token::Semi).repeated().at_least(1))
         .allow_trailing()
-        .collect()
+        .collect::<Vec<_>>()
+}
+
+fn item_parser<'toks, 'src: 'toks, I>()
+-> impl Parser<'toks, I, Spanned<Item<'src>>, chumsky::extra::Err<Rich<'toks, Token<'src>>>>
+where
+    I: ValueInput<'toks, Token = Token<'src>, Span = SimpleSpan>,
+{
+    choice((
+        binding_parser(expr_parser()).map(|b| Item::Binding(b.inner).with_span(b.span)),
+        type_def_parser().map(|td| Item::TypeDef(td.inner).with_span(td.span)),
+    ))
+}
+
+fn type_def_parser<'toks, 'src: 'toks, I>()
+-> impl Parser<'toks, I, Spanned<TypeDef<'src>>, chumsky::extra::Err<Rich<'toks, Token<'src>>>>
+where
+    I: ValueInput<'toks, Token = Token<'src>, Span = SimpleSpan>,
+{
+    let field = select! {Token::Ident(i) => Ident(i)}
+        .spanned()
+        .then_ignore(just(Token::Colon))
+        .then(ty_parser())
+        .map(|(name, ty)| Field { name, ty })
+        .spanned();
+    let struct_ = just(Token::KwType)
+        .ignore_then(select! {Token::Ident(i) => Ident(i)}.spanned())
+        .then_ignore(just(Token::Eq))
+        .then_ignore(just(Token::KwStruct))
+        .then(
+            field
+                .separated_by(just(Token::Comma))
+                .allow_trailing()
+                .collect::<Vec<_>>()
+                .delimited_by(just(Token::LCurly), just(Token::RCurly)),
+        )
+        .map(|(name, fields)| TypeDef::Struct(name, fields))
+        .spanned();
+    struct_
 }
 
 /// Parses a binding e.g. `PAT:TY?=EXPR`

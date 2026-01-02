@@ -8,12 +8,16 @@ pub enum Token<'src> {
     Error,
 
     // Keywords
+    #[token("mut")]
+    KwMut,
+    #[token("type")]
+    KwType,
     #[token("const")]
     KwConst,
     #[token("struct")]
     KwStruct,
-    #[token("trait")]
-    KwTrait,
+    #[token("interface")]
+    KwInterface,
     #[token("enum")]
     KwEnum,
     #[token("return")]
@@ -233,7 +237,6 @@ impl Display for Token<'_> {
                 Error => "<error>",
                 KwConst => "const",
                 KwStruct => "struct",
-                KwTrait => "trait",
                 KwEnum => "enum",
                 KwReturn => "return",
                 KwUse => "use",
@@ -245,6 +248,9 @@ impl Display for Token<'_> {
                 LitChar(_) => "character",
                 LitBool(_) => "bool",
                 Ident(_) => "identifier",
+                KwMut => "mut",
+                KwType => "type",
+                KwInterface => "interface",
             }
         )
     }

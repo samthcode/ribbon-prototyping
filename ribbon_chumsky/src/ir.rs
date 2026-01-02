@@ -1,13 +1,20 @@
 use string_interner::DefaultSymbol as Symbol;
 
-use crate::{arena, ast, span::Span};
+use crate::{arena::Id, ast, span::Span};
 
-type ExprId = arena::Id<Expr>;
-type LocalDefId = arena::Id<LocalDef>;
-type DefId = arena::Id<Def>;
-type PatId = arena::Id<Pat>;
-type TyId = arena::Id<Ty>;
-type BlockId = arena::Id<Block>;
+type ExprId = Id<Expr>;
+type BindingId = Id<Binding>;
+type LocalDefId = Id<LocalDef>;
+type DefId = Id<Def>;
+type PatId = Id<Pat>;
+type TyId = Id<Ty>;
+type BlockId = Id<Block>;
+
+pub enum Item {
+    Binding(BindingId),
+    Expr(ExprId),
+    TypeDef,
+}
 
 pub struct Expr {
     pub span: Span,
@@ -28,12 +35,7 @@ pub enum ExprKind {
     Bool(bool),
     List(Vec<ExprId>),
 
-    Binding {
-        pat: PatId,
-        /// Variables defined within the pattern
-        defs: Vec<LocalDefId>,
-        val: ExprId,
-    },
+    Binding(BindingId),
     Block(BlockId),
     Func(DefId),
     If {
@@ -55,6 +57,13 @@ pub enum ExprKind {
 }
 
 pub struct Ty {}
+
+pub struct Binding {
+    pat: PatId,
+    /// Variables defined within the pattern
+    defs: Vec<LocalDefId>,
+    val: ExprId,
+}
 
 pub struct PathSegment {
     pub span: Span,
@@ -103,6 +112,8 @@ pub enum Def {
         ret_ty: TyId,
         body: BlockId,
     },
+    /// e.g. `type Point = struct {x:i32, y: i32};`
+    Type,
     Module,
 }
 

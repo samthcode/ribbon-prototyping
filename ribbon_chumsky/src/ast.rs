@@ -3,6 +3,28 @@ use std::fmt::Debug;
 use chumsky::span::Spanned;
 
 #[derive(Debug, Clone)]
+pub enum Item<'src> {
+    Binding(Binding<'src>),
+    /// Note that this can also be a binding but the dedicated variant should be parsed first
+    Expr(Expr<'src>),
+    /// e.g. `type Point = struct {x: i32, y: i32};`
+    TypeDef(TypeDef<'src>),
+}
+
+#[derive(Debug, Clone)]
+pub enum TypeDef<'src> {
+    // TODO: Figure out what should be in these variants
+    Struct(Spanned<Ident<'src>>, Vec<Spanned<Field<'src>>>),
+    Interface(Spanned<Ident<'src>>, Vec<Spanned<Binding<'src>>>),
+}
+
+#[derive(Debug, Clone)]
+pub struct Field<'src> {
+    pub name: Spanned<Ident<'src>>,
+    pub ty: Spanned<Ty<'src>>,
+}
+
+#[derive(Debug, Clone)]
 pub enum Expr<'src> {
     Path(Path<'src>),
 

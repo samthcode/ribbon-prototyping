@@ -34,6 +34,7 @@ pub struct Ir {
 #[derive(Debug, Clone)]
 pub enum Item {
     Binding(Binding),
+    FuncDef(DefId),
     Expr(ExprId),
     TypeDef,
 }
@@ -58,7 +59,12 @@ pub enum ExprKind {
 
     Binding(Binding),
     Block(BlockId),
-    Func(DefId),
+    AnonFunc {
+        params: Vec<Param>,
+        /// Filled during type-checking
+        ret_ty: Option<TyId>,
+        body: ExprId,
+    },
     If {
         cond: ExprId,
         then: BlockId,
@@ -165,8 +171,8 @@ pub struct LocalDef {
 
 #[derive(Debug, Clone)]
 pub enum Def {
-    Local(LocalDefId),
     Func {
+        name: Symbol,
         params: Vec<Param>,
         /// Filled during type-checking
         ret_ty: Option<TyId>,

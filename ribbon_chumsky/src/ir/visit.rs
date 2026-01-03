@@ -36,6 +36,7 @@ pub fn walk_item<'ir, V: Visitor<'ir>>(v: &mut V, item: &Item) {
         Item::Binding(binding) => v.visit_binding(binding),
         Item::Expr(_) => (),
         Item::TypeDef => todo!(),
+        Item::FuncDef(_) => todo!(),
     }
 }
 
@@ -50,7 +51,8 @@ pub fn walk_expr<'ir, V: Visitor<'ir>>(v: &mut V, expr: &Expr) {
         ExprKind::List(ids) => ids.iter().for_each(|expr_id| v.visit_expr(expr_id.clone())),
         ExprKind::Binding(binding) => v.visit_binding(binding),
         ExprKind::Block(id) => v.visit_block(id.clone()),
-        ExprKind::Func(_) => (),
+        // TODO: Unsure of what the default behaviour should be here
+        ExprKind::AnonFunc { .. } => (),
         ExprKind::If {
             cond,
             then,

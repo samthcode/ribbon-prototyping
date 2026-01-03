@@ -58,6 +58,7 @@ impl Lowerer {
             }
             ast::Item::Expr(expr) => ir::Item::Expr(self.lower_expr(expr.with_span(item.span))),
             ast::Item::TypeDef(type_def) => todo!(),
+            ast::Item::FuncDef(func_def) => ir::Item::FuncDef(self.lower_func(func_def)),
         };
         self.items.alloc(item)
     }
@@ -85,7 +86,7 @@ impl Lowerer {
                 rhs: self.lower_expr(*rhs),
             },
             ast::Expr::Block(block) => Block(self.lower_block(*block, span)),
-            ast::Expr::Fn(func) => Func(self.lower_func(*func)),
+            ast::Expr::AnonFunc(func) => todo!(),
             ast::Expr::Binding(binding) => Binding(self.lower_binding(*binding, span)),
             ast::Expr::FunctionCall(spanned, spanneds) => todo!(),
             ast::Expr::FieldAccess(spanned, spanned1) => todo!(),
@@ -110,16 +111,19 @@ impl Lowerer {
         self.blocks.alloc(ir::Block { span, items, ret })
     }
 
-    fn lower_func(&mut self, func: ast::Func) -> DefId {
-        let ast::Func {
+    fn lower_func(&mut self, func: ast::FuncDef) -> DefId {
+        let ast::FuncDef {
+            name,
             params,
             ret_ty,
             body,
         } = func;
+        let name = self.interner.get_or_intern(name.inner.0);
         let params = params.into_iter().map(|p| self.lower_param(p)).collect();
         let ret_ty = ret_ty.map(|t| self.lower_ty(t));
         let body = self.lower_expr(body);
         self.defs.alloc(ir::Def::Func {
+            name,
             params,
             ret_ty,
             body,

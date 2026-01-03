@@ -9,6 +9,8 @@ pub enum Item<'src> {
     Expr(Expr<'src>),
     /// e.g. `type Point = struct {x: i32, y: i32};`
     TypeDef(TypeDef<'src>),
+    /// e.g. `fn some_func = () => "Hello World"`
+    FuncDef(FuncDef<'src>),
 }
 
 #[derive(Debug, Clone)]
@@ -16,6 +18,14 @@ pub enum TypeDef<'src> {
     // TODO: Figure out what should be in these variants
     Struct(Spanned<Ident<'src>>, Vec<Spanned<Field<'src>>>),
     Interface(Spanned<Ident<'src>>, Vec<Spanned<Binding<'src>>>),
+}
+
+#[derive(Debug, Clone)]
+pub struct FuncDef<'src> {
+    pub name: Spanned<Ident<'src>>,
+    pub params: Vec<Spanned<Param<'src>>>,
+    pub ret_ty: Option<Spanned<Ty<'src>>>,
+    pub body: Spanned<Expr<'src>>,
 }
 
 #[derive(Debug, Clone)]
@@ -42,7 +52,7 @@ pub enum Expr<'src> {
     ),
     Unary(Spanned<UnaryOp>, Box<Spanned<Expr<'src>>>),
     Block(Box<Block<'src>>),
-    Fn(Box<Func<'src>>),
+    AnonFunc(Box<AnonFunc<'src>>),
     Binding(Box<Binding<'src>>),
 
     FunctionCall(Box<Spanned<Expr<'src>>>, Vec<Spanned<Expr<'src>>>),
@@ -173,7 +183,7 @@ pub enum Ty<'src> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Func<'src> {
+pub struct AnonFunc<'src> {
     pub params: Vec<Spanned<Param<'src>>>,
     pub ret_ty: Option<Spanned<Ty<'src>>>,
     pub body: Spanned<Expr<'src>>,

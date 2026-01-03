@@ -6,6 +6,8 @@ use crate::{
     span::Span,
 };
 
+pub mod visit;
+
 pub type ItemId = Id<Item>;
 pub type ExprId = Id<Expr>;
 pub type LocalDefId = Id<LocalDef>;

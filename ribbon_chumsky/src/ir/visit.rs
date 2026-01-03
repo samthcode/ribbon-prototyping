@@ -1,0 +1,109 @@
+use super::*;
+
+pub trait Visitor: Sized {
+    fn ir(&self) -> Ir;
+    fn visit_item(&mut self, item_id: ItemId) {
+        let item = &self.ir().items[item_id.clone()];
+        walk_item(self, item);
+    }
+    fn visit_expr(&mut self, expr_id: ExprId) {
+        let expr = &self.ir().exprs[expr_id.clone()];
+        walk_expr(self, expr);
+    }
+    fn visit_pat(&mut self, pat_id: PatId) {
+        let pat = &self.ir().pats[pat_id.clone()];
+        walk_pat(self, pat);
+    }
+    fn visit_ty(&mut self, ty_id: TyId) {
+        let ty = &self.ir().tys[ty_id.clone()];
+        walk_ty(self, ty);
+    }
+    fn visit_block(&mut self, block_id: BlockId) {
+        let block = &self.ir().blocks[block_id.clone()];
+        walk_block(self, block);
+    }
+
+    fn visit_binding(&mut self, binding: &Binding) {
+        walk_binding(self, binding)
+    }
+    fn visit_path(&mut self, path: &Path) {
+        walk_path(self, path)
+    }
+}
+
+pub fn walk_item<V: Visitor>(v: &mut V, item: &Item) {
+    match item {
+        Item::Binding(binding) => v.visit_binding(binding),
+        Item::Expr(id) => (),
+        Item::TypeDef => todo!(),
+    }
+}
+
+pub fn walk_expr<V: Visitor>(v: &mut V, expr: &Expr) {
+    match &expr.kind {
+        ExprKind::Var(_)
+        | ExprKind::String(_)
+        | ExprKind::Char(_)
+        | ExprKind::Bool(_)
+        | ExprKind::Num(_) => (),
+        ExprKind::Path(path) => v.visit_path(path),
+        ExprKind::List(ids) => ids.iter().for_each(|expr_id| v.visit_expr(expr_id.clone())),
+        ExprKind::Binding(binding) => v.visit_binding(binding),
+        ExprKind::Block(id) => v.visit_block(id.clone()),
+        ExprKind::Func(_) => (),
+        ExprKind::If {
+            cond,
+            then,
+            else_ifs,
+            else_,
+        } => {
+            v.visit_expr(cond.clone());
+            v.visit_block(then.clone());
+            else_ifs.as_ref().inspect(|elifs| {
+                elifs.iter().for_each(|(c, b)| {
+                    v.visit_expr(c.clone());
+                    v.visit_block(b.clone());
+                })
+            });
+            else_.as_ref().inspect(|&e| v.visit_block(e.clone()));
+        }
+        ExprKind::Bin { lhs, rhs, .. } => {
+            v.visit_expr(lhs.clone());
+            v.visit_expr(rhs.clone());
+        }
+        ExprKind::Unary { rhs, .. } => v.visit_expr(rhs.clone()),
+    }
+}
+
+pub fn walk_pat<V: Visitor>(v: &mut V, pat: &Pat) {
+    match &pat.kind {
+        PatKind::Ident { .. } => (),
+        PatKind::Tuple(ids) => todo!(),
+    }
+}
+
+pub fn walk_ty<V: Visitor>(v: &mut V, ty: &Ty) {
+    todo!()
+}
+
+pub fn walk_block<V: Visitor>(v: &mut V, block: &Block) {
+    for item in &block.items {
+        v.visit_item(item.clone());
+    }
+    block.ret.clone().map(|r| v.visit_item(r));
+}
+
+pub fn walk_binding<V: Visitor>(v: &mut V, binding: &Binding) {
+    v.visit_pat(binding.pat.clone());
+    v.visit_expr(binding.val.clone());
+}
+
+pub fn walk_path<V: Visitor>(v: &mut V, path: &Path) {
+    for segment in &path.segments {
+        segment.generics.as_ref().map(|generics| {
+            for ty_id in generics {
+                v.visit_ty(ty_id.clone());
+            }
+        });
+    }
+}

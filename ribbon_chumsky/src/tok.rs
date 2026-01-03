@@ -28,6 +28,8 @@ pub enum Token<'src> {
     KwFor,
     #[token("while")]
     KwWhile,
+    #[token("fn")]
+    KwFn,
 
     // Literals
     #[regex(r"(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?", |lex| lex.slice())]
@@ -251,6 +253,7 @@ impl Display for Token<'_> {
                 KwMut => "mut",
                 KwType => "type",
                 KwInterface => "interface",
+                KwFn => "fn",
             }
         )
     }

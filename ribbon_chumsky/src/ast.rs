@@ -175,7 +175,7 @@ pub enum Ty<'src> {
 #[derive(Debug, Clone)]
 pub struct Func<'src> {
     pub params: Vec<Spanned<Param<'src>>>,
-    pub ty: Option<Spanned<Ty<'src>>>,
+    pub ret_ty: Option<Spanned<Ty<'src>>>,
     pub body: Spanned<Expr<'src>>,
 }
 

@@ -3,19 +3,29 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub struct Id<T> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Id<T: Clone> {
     idx: u32,
     /// Makes `Id` act like it owns a `T`
     _phantom: PhantomData<fn() -> T>,
 }
 
+impl<T: Clone> Id<T> {
+    pub fn placeholder() -> Self {
+        Self {
+            idx: 0,
+            _phantom: PhantomData,
+        }
+    }
+}
+
 /// A simple arena to store IR nodes
+#[derive(Debug, Clone)]
 pub struct Arena<T> {
     data: Vec<T>,
 }
 
-impl<T> Arena<T> {
+impl<T: Clone> Arena<T> {
     pub fn new() -> Self {
         Self { data: Vec::new() }
     }
@@ -38,7 +48,7 @@ impl<T> Arena<T> {
     }
 }
 
-impl<T> Index<Id<T>> for Arena<T> {
+impl<T: Clone> Index<Id<T>> for Arena<T> {
     type Output = T;
 
     fn index(&self, index: Id<T>) -> &Self::Output {
@@ -46,7 +56,7 @@ impl<T> Index<Id<T>> for Arena<T> {
     }
 }
 
-impl<T> IndexMut<Id<T>> for Arena<T> {
+impl<T: Clone> IndexMut<Id<T>> for Arena<T> {
     fn index_mut(&mut self, index: Id<T>) -> &mut Self::Output {
         self.get_mut(index)
     }

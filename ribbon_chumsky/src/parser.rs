@@ -180,7 +180,7 @@ where
                 )
                 .map(|((params, ty), body)| Func {
                     params,
-                    ty: Some(ty),
+                    ret_ty: Some(ty),
                     body,
                 }),
             params
@@ -188,7 +188,7 @@ where
                 .then(expr.clone())
                 .map(|(params, body)| Func {
                     params,
-                    ty: None,
+                    ret_ty: None,
                     body,
                 }),
         ))

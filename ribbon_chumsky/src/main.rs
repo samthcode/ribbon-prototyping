@@ -3,11 +3,14 @@ use ariadne::{Color, Label, Report, ReportKind, Source};
 mod arena;
 mod ast;
 mod ir;
+mod lower;
 mod parser;
 mod span;
 mod tok;
 
 use parser::parse_from_source;
+
+use crate::lower::Lowerer;
 
 fn main() {
     let input = std::env::args()
@@ -15,7 +18,11 @@ fn main() {
         .expect("expected input wrapped in `\"` to lex");
     let result = parse_from_source(&input);
     match result.into_result() {
-        Ok(ast) => println!("{ast:#?}"),
+        Ok(ast) => {
+            println!("{ast:#?}");
+            let ir = Lowerer::lower(ast);
+            println!("{ir:#?}");
+        }
         Err(errs) => {
             for err in errs {
                 Report::build(ReportKind::Error, ((), err.span().into_range()))

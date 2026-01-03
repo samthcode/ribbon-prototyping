@@ -43,7 +43,7 @@ pub enum Token<'src> {
     LitBool(bool),
 
     // Identifier
-    #[regex(r"[\p{L}\p{M}][\p{L}\p{M}\p{Nd}]*(\?|!)?", |lex| lex.slice())]
+    #[regex(r"[_\p{L}\p{M}][_\p{L}\p{M}\p{Nd}]*(\?|!)?", |lex| lex.slice())]
     Ident(&'src str),
 
     // Operators

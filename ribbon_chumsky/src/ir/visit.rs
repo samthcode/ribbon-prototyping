@@ -1,7 +1,7 @@
 use super::*;
 
-pub trait Visitor: Sized {
-    fn ir(&self) -> Ir;
+pub trait Visitor<'ir>: Sized {
+    fn ir(&self) -> &'ir Ir;
     fn visit_item(&mut self, item_id: ItemId) {
         let item = &self.ir().items[item_id.clone()];
         walk_item(self, item);
@@ -31,7 +31,7 @@ pub trait Visitor: Sized {
     }
 }
 
-pub fn walk_item<V: Visitor>(v: &mut V, item: &Item) {
+pub fn walk_item<'ir, V: Visitor<'ir>>(v: &mut V, item: &Item) {
     match item {
         Item::Binding(binding) => v.visit_binding(binding),
         Item::Expr(id) => (),
@@ -39,7 +39,7 @@ pub fn walk_item<V: Visitor>(v: &mut V, item: &Item) {
     }
 }
 
-pub fn walk_expr<V: Visitor>(v: &mut V, expr: &Expr) {
+pub fn walk_expr<'ir, V: Visitor<'ir>>(v: &mut V, expr: &Expr) {
     match &expr.kind {
         ExprKind::Var(_)
         | ExprKind::String(_)
@@ -75,30 +75,30 @@ pub fn walk_expr<V: Visitor>(v: &mut V, expr: &Expr) {
     }
 }
 
-pub fn walk_pat<V: Visitor>(v: &mut V, pat: &Pat) {
+pub fn walk_pat<'ir, V: Visitor<'ir>>(v: &mut V, pat: &Pat) {
     match &pat.kind {
         PatKind::Ident { .. } => (),
         PatKind::Tuple(ids) => todo!(),
     }
 }
 
-pub fn walk_ty<V: Visitor>(v: &mut V, ty: &Ty) {
+pub fn walk_ty<'ir, V: Visitor<'ir>>(v: &mut V, ty: &Ty) {
     todo!()
 }
 
-pub fn walk_block<V: Visitor>(v: &mut V, block: &Block) {
+pub fn walk_block<'ir, V: Visitor<'ir>>(v: &mut V, block: &Block) {
     for item in &block.items {
         v.visit_item(item.clone());
     }
     block.ret.clone().map(|r| v.visit_item(r));
 }
 
-pub fn walk_binding<V: Visitor>(v: &mut V, binding: &Binding) {
+pub fn walk_binding<'ir, V: Visitor<'ir>>(v: &mut V, binding: &Binding) {
     v.visit_pat(binding.pat.clone());
     v.visit_expr(binding.val.clone());
 }
 
-pub fn walk_path<V: Visitor>(v: &mut V, path: &Path) {
+pub fn walk_path<'ir, V: Visitor<'ir>>(v: &mut V, path: &Path) {
     for segment in &path.segments {
         segment.generics.as_ref().map(|generics| {
             for ty_id in generics {

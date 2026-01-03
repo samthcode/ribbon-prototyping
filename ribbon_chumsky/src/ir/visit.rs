@@ -3,23 +3,23 @@ use super::*;
 pub trait Visitor<'ir>: Sized {
     fn ir(&self) -> &'ir Ir;
     fn visit_item(&mut self, item_id: ItemId) {
-        let item = &self.ir().items[item_id.clone()];
+        let item = &self.ir().items[item_id];
         walk_item(self, item);
     }
     fn visit_expr(&mut self, expr_id: ExprId) {
-        let expr = &self.ir().exprs[expr_id.clone()];
+        let expr = &self.ir().exprs[expr_id];
         walk_expr(self, expr);
     }
     fn visit_pat(&mut self, pat_id: PatId) {
-        let pat = &self.ir().pats[pat_id.clone()];
+        let pat = &self.ir().pats[pat_id];
         walk_pat(self, pat);
     }
     fn visit_ty(&mut self, ty_id: TyId) {
-        let ty = &self.ir().tys[ty_id.clone()];
+        let ty = &self.ir().tys[ty_id];
         walk_ty(self, ty);
     }
     fn visit_block(&mut self, block_id: BlockId) {
-        let block = &self.ir().blocks[block_id.clone()];
+        let block = &self.ir().blocks[block_id];
         walk_block(self, block);
     }
 
@@ -34,7 +34,7 @@ pub trait Visitor<'ir>: Sized {
 pub fn walk_item<'ir, V: Visitor<'ir>>(v: &mut V, item: &Item) {
     match item {
         Item::Binding(binding) => v.visit_binding(binding),
-        Item::Expr(id) => (),
+        Item::Expr(_) => (),
         Item::TypeDef => todo!(),
     }
 }

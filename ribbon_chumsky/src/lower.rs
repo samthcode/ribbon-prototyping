@@ -164,7 +164,7 @@ impl Lowerer {
                         local_def_id: local_def_id.clone(),
                     },
                 });
-                self.local_defs[local_def_id.clone()].pat_id = pat_id.clone();
+                self.local_defs[&local_def_id].pat_id = pat_id.clone();
 
                 (pat_id, vec![local_def_id])
             }

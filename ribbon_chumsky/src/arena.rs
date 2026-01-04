@@ -39,25 +39,25 @@ impl<T: Clone> Arena<T> {
         }
     }
 
-    pub fn get(&self, id: Id<T>) -> &T {
+    pub fn get(&self, id: &Id<T>) -> &T {
         &self.data[id.idx as usize]
     }
 
-    pub fn get_mut(&mut self, id: Id<T>) -> &mut T {
+    pub fn get_mut(&mut self, id: &Id<T>) -> &mut T {
         &mut self.data[id.idx as usize]
     }
 }
 
-impl<T: Clone> Index<Id<T>> for Arena<T> {
+impl<T: Clone> Index<&Id<T>> for Arena<T> {
     type Output = T;
 
-    fn index(&self, index: Id<T>) -> &Self::Output {
+    fn index(&self, index: &Id<T>) -> &Self::Output {
         self.get(index)
     }
 }
 
-impl<T: Clone> IndexMut<Id<T>> for Arena<T> {
-    fn index_mut(&mut self, index: Id<T>) -> &mut Self::Output {
+impl<T: Clone> IndexMut<&Id<T>> for Arena<T> {
+    fn index_mut(&mut self, index: &Id<T>) -> &mut Self::Output {
         self.get_mut(index)
     }
 }

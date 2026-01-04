@@ -10,7 +10,7 @@ mod tok;
 
 use parser::parse_from_source;
 
-use crate::lower::Lowerer;
+use crate::{ir::name_resolution::DefCollector, lower::Lowerer};
 
 fn main() {
     let input = std::env::args()
@@ -22,6 +22,8 @@ fn main() {
             println!("{ast:#?}");
             let ir = Lowerer::lower(ast);
             println!("{ir:#?}");
+            let defs = DefCollector::collect_defs(&ir);
+            println!("{defs:#?}");
         }
         Err(errs) => {
             for err in errs {

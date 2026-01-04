@@ -6,6 +6,7 @@ use crate::{
     span::Span,
 };
 
+pub mod name_resolution;
 pub mod visit;
 
 pub type ItemId = Id<Item>;

@@ -69,7 +69,6 @@ pub enum ExprKind {
     If {
         cond: ExprId,
         then: BlockId,
-        else_ifs: Option<Vec<(ExprId, BlockId)>>,
         else_: Option<BlockId>,
     },
     Bin {

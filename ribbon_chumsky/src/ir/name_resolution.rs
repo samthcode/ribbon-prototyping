@@ -166,7 +166,6 @@ impl<'ir> Visitor<'ir> for DefCollector<'ir> {
             ExprKind::If {
                 cond,
                 then,
-                else_ifs,
                 else_,
             } => todo!(),
             ExprKind::Bin { lhs, rhs, .. } => {

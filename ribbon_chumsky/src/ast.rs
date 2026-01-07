@@ -100,7 +100,7 @@ pub struct Block<'src> {
     pub ret: Option<Spanned<Item<'src>>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum BinOp {
     /// `+`
     Add,
@@ -156,7 +156,7 @@ pub enum BinOp {
     RangeIncl,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum UnaryOp {
     Neg,
     Not,

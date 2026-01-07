@@ -10,7 +10,7 @@ mod tok;
 
 use parser::parse_from_source;
 
-use crate::{ir::name_resolution::DefCollector, lower::Lowerer};
+use crate::{ir::resolve, lower::Lowerer};
 
 fn main() {
     let input = std::env::args()
@@ -20,10 +20,11 @@ fn main() {
     match result.into_result() {
         Ok(ast) => {
             println!("{ast:#?}");
-            let ir = Lowerer::lower(ast);
+            let mut ir = Lowerer::lower(ast);
             println!("{ir:#?}");
-            let defs = DefCollector::collect_defs(&ir);
-            println!("{defs:#?}");
+            if let Err(_) = resolve::resolve(&mut ir, true) {
+                println!("errors during symbol resolution");
+            }
         }
         Err(errs) => {
             for err in errs {

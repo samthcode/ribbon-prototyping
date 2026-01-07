@@ -1,16 +1,17 @@
 use std::{
+    hash::Hash,
     marker::PhantomData,
     ops::{Index, IndexMut},
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Id<T: Clone> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Id<T: Clone + Hash + Eq> {
     idx: u32,
     /// Makes `Id` act like it owns a `T`
     _phantom: PhantomData<fn() -> T>,
 }
 
-impl<T: Clone> Id<T> {
+impl<T: Clone + Hash + Eq> Id<T> {
     pub fn placeholder() -> Self {
         Self {
             idx: 0,
@@ -20,12 +21,12 @@ impl<T: Clone> Id<T> {
 }
 
 /// A simple arena to store IR nodes
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct Arena<T> {
     data: Vec<T>,
 }
 
-impl<T: Clone> Arena<T> {
+impl<T: Clone + Hash + Eq> Arena<T> {
     pub fn new() -> Self {
         Self { data: Vec::new() }
     }
@@ -48,7 +49,7 @@ impl<T: Clone> Arena<T> {
     }
 }
 
-impl<T: Clone> Index<&Id<T>> for Arena<T> {
+impl<T: Clone + Hash + Eq> Index<&Id<T>> for Arena<T> {
     type Output = T;
 
     fn index(&self, index: &Id<T>) -> &Self::Output {
@@ -56,7 +57,7 @@ impl<T: Clone> Index<&Id<T>> for Arena<T> {
     }
 }
 
-impl<T: Clone> IndexMut<&Id<T>> for Arena<T> {
+impl<T: Clone + Hash + Eq> IndexMut<&Id<T>> for Arena<T> {
     fn index_mut(&mut self, index: &Id<T>) -> &mut Self::Output {
         self.get_mut(index)
     }

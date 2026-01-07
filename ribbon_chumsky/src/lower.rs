@@ -5,7 +5,7 @@ use string_interner::DefaultStringInterner;
 
 use crate::arena::Arena;
 use crate::ast;
-use crate::ir::{self, BlockId, DefId, ExprId, ItemId, LocalDefId, PatId, TyId};
+use crate::ir::{self, BlockId, DefId, ExprId, ItemId, PatId, TyId};
 use crate::span::Span;
 
 pub struct Lowerer {
@@ -13,7 +13,6 @@ pub struct Lowerer {
 
     items: Arena<ir::Item>,
     exprs: Arena<ir::Expr>,
-    local_defs: Arena<ir::LocalDef>,
     defs: Arena<ir::Def>,
     pats: Arena<ir::Pat>,
     tys: Arena<ir::Ty>,
@@ -26,7 +25,6 @@ impl Lowerer {
             interner: DefaultStringInterner::new(),
             items: Arena::new(),
             exprs: Arena::new(),
-            local_defs: Arena::new(),
             defs: Arena::new(),
             pats: Arena::new(),
             tys: Arena::new(),
@@ -43,7 +41,6 @@ impl Lowerer {
             interner: lowerer.interner,
             items: lowerer.items,
             exprs: lowerer.exprs,
-            local_defs: lowerer.local_defs,
             defs: lowerer.defs,
             pats: lowerer.pats,
             tys: lowerer.tys,
@@ -145,12 +142,12 @@ impl Lowerer {
         }
     }
 
-    fn lower_pat(&mut self, pat: Spanned<ast::Pat>) -> (PatId, Vec<LocalDefId>) {
+    fn lower_pat(&mut self, pat: Spanned<ast::Pat>) -> (PatId, Vec<DefId>) {
         let span: Span = pat.span.into();
         match pat.inner {
             ast::Pat::Ident(ident) => {
                 let name = self.interner.get_or_intern(ident.0);
-                let local_def_id = self.local_defs.alloc(ir::LocalDef {
+                let local_def_id = self.defs.alloc(ir::Def::Local {
                     name,
                     pat_id: PatId::placeholder(),
                     ty: None,
@@ -161,10 +158,16 @@ impl Lowerer {
                     span,
                     kind: ir::PatKind::Ident {
                         name,
-                        local_def_id: local_def_id.clone(),
+                        def_id: local_def_id.clone(),
                     },
                 });
-                self.local_defs[&local_def_id].pat_id = pat_id.clone();
+                self.defs[&local_def_id] = ir::Def::Local {
+                    name,
+                    pat_id: pat_id.clone(),
+                    ty: None,
+                    // TODO
+                    mutable: ir::Mutability::Not,
+                };
 
                 (pat_id, vec![local_def_id])
             }

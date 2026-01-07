@@ -6,12 +6,12 @@ use crate::{
     span::Span,
 };
 
-pub mod name_resolution;
+pub mod resolve;
+pub mod scope;
 pub mod visit;
 
 pub type ItemId = Id<Item>;
 pub type ExprId = Id<Expr>;
-pub type LocalDefId = Id<LocalDef>;
 pub type DefId = Id<Def>;
 pub type PatId = Id<Pat>;
 pub type TyId = Id<Ty>;
@@ -25,14 +25,13 @@ pub struct Ir {
 
     pub items: Arena<Item>,
     pub exprs: Arena<Expr>,
-    pub local_defs: Arena<LocalDef>,
     pub defs: Arena<Def>,
     pub pats: Arena<Pat>,
     pub tys: Arena<Ty>,
     pub blocks: Arena<Block>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum Item {
     Binding(Binding),
     FuncDef(DefId),
@@ -40,15 +39,15 @@ pub enum Item {
     TypeDef,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Expr {
     pub span: Span,
     pub kind: ExprKind,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum ExprKind {
-    Var(LocalDefId),
+    Var(DefId),
     Path(Path),
 
     // Literals
@@ -84,40 +83,40 @@ pub enum ExprKind {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Ty {
     pub span: Span,
     pub kind: TyKind,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum TyKind {
     /// Used as a placeholder before types are checked
     Unresolved(UnresolvedTyKind),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum UnresolvedTyKind {
     Path(Path),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Path {
     pub segments: Vec<PathSegment>,
     /// Filled during name resolution
     pub def_id: Option<DefId>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Binding {
     pub pat: PatId,
     /// Variables defined within the pattern
-    pub defs: Vec<LocalDefId>,
+    pub defs: Vec<DefId>,
     pub ty: Option<TyId>,
     pub val: ExprId,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct PathSegment {
     pub span: Span,
     pub sym: Symbol,
@@ -126,16 +125,16 @@ pub struct PathSegment {
     pub generics: Option<Vec<TyId>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Param {
     pub span: Span,
     pub pat: PatId,
-    pub defs: Vec<LocalDefId>,
+    pub defs: Vec<DefId>,
     pub ty: TyId,
     pub default: Option<ExprId>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Block {
     pub span: Span,
     /// Expressions/statements which are followed by a semicolon
@@ -144,33 +143,27 @@ pub struct Block {
     pub ret: Option<ItemId>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Pat {
     pub span: Span,
     pub kind: PatKind,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum PatKind {
-    Ident {
-        name: Symbol,
-        local_def_id: LocalDefId,
-    },
+    Ident { name: Symbol, def_id: DefId },
     Tuple(Vec<PatId>),
 }
 
-/// Definition of a local variable, which comes from a binding
-#[derive(Debug, Clone)]
-pub struct LocalDef {
-    pub name: Symbol,
-    pub pat_id: PatId,
-    /// Filled during type-checking
-    pub ty: Option<TyId>,
-    pub mutable: Mutability,
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum Def {
+    Local {
+        name: Symbol,
+        pat_id: PatId,
+        /// Filled during type-checking
+        ty: Option<TyId>,
+        mutable: Mutability,
+    },
     Func {
         name: Symbol,
         params: Vec<Param>,
@@ -179,11 +172,14 @@ pub enum Def {
         body: ExprId,
     },
     /// e.g. `type Point = struct {x:i32, y: i32};`
-    Type(TyId),
+    Type {
+        name: Symbol,
+        ty_id: TyId,
+    },
     Module,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum Mutability {
     Not,
     Mutable,

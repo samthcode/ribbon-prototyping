@@ -1,6 +1,6 @@
 use chumsky::span::SimpleSpan;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Span {
     start: u32,
     end: u32,
